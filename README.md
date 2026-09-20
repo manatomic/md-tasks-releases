@@ -63,6 +63,31 @@ Every command takes `--root <dir>` to point at a different data root and
 `--json` for JSON output (plain text is the default). `manatomic tasks --help`
 lists all commands; each command has its own `--help`.
 
+## Agent skills (Claude Code plugin)
+
+This repo is also a [Claude Code](https://claude.com/claude-code) plugin
+marketplace. The `md-tasks` plugin ships agent skills for the CLI, versioned
+with the release that published them:
+
+```sh
+claude plugin marketplace add manatomic/md-tasks-releases
+claude plugin install md-tasks@manatomic
+```
+
+(Or run `/plugin install md-tasks@manatomic` from inside a Claude Code
+session after adding the marketplace.)
+
+Skills:
+
+- `md-tasks:cli` — full CLI reference: every command, field semantics, verify
+  evidence, plan approval, fingerprints/conflicts, and known gaps with
+  workarounds. Also auto-triggers when an agent works in a repo with a
+  manatomic data root.
+
+The `docs/` folder carries the published documentation:
+[manatomic file format](docs/manatomic-file-format.md), the spec for the
+markdown/YAML files under a data root.
+
 ## Release assets
 
 | Asset | Description |
