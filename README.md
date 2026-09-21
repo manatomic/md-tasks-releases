@@ -83,6 +83,10 @@ Skills:
   evidence, plan approval, fingerprints/conflicts, and known gaps with
   workarounds. Also auto-triggers when an agent works in a repo with a
   manatomic data root.
+- `md-tasks:migrate-from-backlog` — one-shot, verified migration of a
+  [backlog.md](https://backlog.md) data root (`backlog/`) into a manatomic
+  data root: ids, epics, acceptance criteria, comments-to-decision-log and
+  docs, with `backlog/` removed only after the result checks out.
 
 The `docs/` folder carries the published documentation:
 [manatomic file format](docs/manatomic-file-format.md), the spec for the
