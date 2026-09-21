@@ -57,7 +57,13 @@ the nearest preceding `--ac`), and `task edit` adds (`--ac-add`), checks
 renumber) them later. Each command's `--help` lists every flag.
 
 Docs and decision records follow the same pattern: `manatomic tasks doc
-create|list|view` and `manatomic tasks decision create|list|view`.
+create|list|view` and `manatomic tasks decision create|list|view`. Search
+spans all three — a case-insensitive substring match over ids, titles and
+body text:
+
+```sh
+manatomic tasks search "login"
+```
 
 Browse and edit everything in a local web UI (served until interrupted):
 
