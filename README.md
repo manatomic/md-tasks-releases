@@ -54,7 +54,11 @@ Acceptance criteria travel with the task: `task create` takes repeatable
 `--ac "criterion"` / `--ac-verify "cmd"` pairs (each `--ac-verify` attaches to
 the nearest preceding `--ac`), and `task edit` adds (`--ac-add`), checks
 (`--check-ac`), unchecks (`--uncheck-ac`) and removes (`--remove-ac`, the rest
-renumber) them later. Each command's `--help` lists every flag.
+renumber) them later. A task's Summary — its short PR-ready completion note —
+is replaced with `task edit --summary` or extended with repeatable
+`--append-summary` flags (one paragraph per use), so progress notes can be
+added without resending the existing text. Each command's `--help` lists
+every flag.
 
 Docs and decision records follow the same pattern: `manatomic tasks doc
 create|list|view` and `manatomic tasks decision create|list|view`. Search
