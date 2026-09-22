@@ -1,0 +1,16 @@
+{
+  "name": "manatomic",
+  "owner": {
+    "name": "Najdan Tomic"
+  },
+  "metadata": {
+    "description": "manatomic developer tools. md-tasks: agent skills for the markdown task system, versioned with the CLI they document."
+  },
+  "plugins": [
+    {
+      "name": "md-tasks",
+      "source": "./plugin",
+      "description": "Agent skills for the md-tasks CLI (invoked as `manatomic tasks`) — a full command reference for working with tasks, docs and decisions in a manatomic data root."
+    }
+  ]
+}

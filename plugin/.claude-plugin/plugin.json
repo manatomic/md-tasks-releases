@@ -1,0 +1,17 @@
+{
+  "name": "md-tasks",
+  "description": "Agent skills for md-tasks by manatomic — the markdown task system where plain files in the repo are the source of truth. Ships the CLI reference skill for working with a manatomic data root, and the migrate-from-backlog skill for one-shot migration of a backlog.md data root.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Najdan Tomic"
+  },
+  "keywords": [
+    "tasks",
+    "task management",
+    "markdown",
+    "manatomic",
+    "md-tasks",
+    "cli",
+    "agents"
+  ]
+}
