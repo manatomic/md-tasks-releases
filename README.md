@@ -116,6 +116,25 @@ install covers every project, and your settings, such as the current user,
 carry across them. The ⌘1–⌘9 shortcuts work in the app window; browser tabs keep
 those keys for switching tabs.
 
+Start the hub at login, so the installed app always finds it running (macOS and
+Linux):
+
+```sh
+manatomic tasks hub autostart on            # now and at every login; --port <n> moves it
+manatomic tasks hub autostart off           # stop it and remove the login entry
+```
+
+On macOS this is a LaunchAgent, `~/Library/LaunchAgents/com.manatomic.hub.plist`,
+logging to `~/Library/Logs/manatomic-hub.log`; macOS shows a "Background Items
+Added" notice and lists it under System Settings → General → Login Items, where
+you can switch it off. On Linux it is a `systemd --user` unit,
+`~/.config/systemd/user/manatomic-hub.service` (under `$XDG_CONFIG_HOME` when
+set), with logs in `journalctl --user -u manatomic-hub`. The hub restarts if it
+crashes. It runs with the `PATH` of the shell where you ran `on`, so `task
+verify` finds your tools — re-run `hub autostart on` after changing your `PATH`
+or moving the binary. Run it from the installed `manatomic`, not a source
+checkout. Windows is not supported yet.
+
 Both `serve` and `hub` only answer requests addressed to this machine
 (`127.0.0.1`, `localhost` or `[::1]` on their port) and refuse writes and
 WebSocket connections from other websites (an `Origin` check), so a page you
