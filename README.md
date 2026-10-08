@@ -105,6 +105,17 @@ The hub always binds `127.0.0.1`, creates an empty `hub.yml` if there is none,
 and picks up `hub add` and `hub remove` while it runs; a project whose folder
 is missing is shown as unavailable without affecting the others.
 
+In the browser, the hub's web UI has a project rail on the left: click a
+project to switch to it, or press ⌘1–⌘9 (Ctrl+1–Ctrl+9 on Windows and Linux)
+for the first nine. `http://127.0.0.1:4500` itself is the Projects page — each
+project's path, task-id prefix and task counts, or why it is unavailable — with
+a form to add a project by typing or pasting its path (absolute or `~/…`); the
+rail's `+` opens the same form. Install the hub as an app (Chrome or Edge:
+Install app; Safari: File › Add to Dock) for its own window and Dock icon: one
+install covers every project, and your settings, such as the current user,
+carry across them. The ⌘1–⌘9 shortcuts work in the app window; browser tabs keep
+those keys for switching tabs.
+
 Both `serve` and `hub` only answer requests addressed to this machine
 (`127.0.0.1`, `localhost` or `[::1]` on their port) and refuse writes and
 WebSocket connections from other websites (an `Origin` check), so a page you
