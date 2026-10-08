@@ -69,7 +69,8 @@ body text:
 manatomic tasks search "login"
 ```
 
-Browse and edit everything in a local web UI (served until interrupted):
+Browse and edit everything in a local web UI (served until interrupted, at
+`http://127.0.0.1:4400`):
 
 ```sh
 manatomic tasks serve
@@ -92,6 +93,23 @@ and its name is the folder name unless `--name` is given. `hub list` marks a
 project `unavailable` when its folder no longer has a `config.yml`. Once
 `hub.yml` exists, `manatomic tasks init` adds each new data root to it
 automatically; `init` never creates the file itself.
+
+Serve every registered project from one process, at one fixed address —
+`http://127.0.0.1:4500`, each project under `/p/<id>/`:
+
+```sh
+manatomic tasks hub                         # until interrupted; --port <n> moves it
+```
+
+The hub always binds `127.0.0.1`, creates an empty `hub.yml` if there is none,
+and picks up `hub add` and `hub remove` while it runs; a project whose folder
+is missing is shown as unavailable without affecting the others.
+
+Both `serve` and `hub` only answer requests addressed to this machine
+(`127.0.0.1`, `localhost` or `[::1]` on their port) and refuse writes and
+WebSocket connections from other websites (an `Origin` check), so a page you
+visit cannot reach your tasks. `serve --host 0.0.0.0` (or `::`) skips the
+address check and exposes the data root to your network, with no auth.
 
 Every command takes `--root <dir>` to point at a different data root and
 `--json` for JSON output (plain text is the default). `manatomic tasks --help`
