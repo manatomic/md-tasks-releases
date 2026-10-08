@@ -75,6 +75,24 @@ Browse and edit everything in a local web UI (served until interrupted):
 manatomic tasks serve
 ```
 
+Keep a list of the manatomic projects on your machine — the hub registry, a
+`hub.yml` file in your user config folder: `$XDG_CONFIG_HOME/manatomic/` when
+that is set (an absolute path), else `~/.config/manatomic/` on macOS and Linux,
+and `%APPDATA%\manatomic\` on Windows:
+
+```sh
+manatomic tasks hub add                     # register ./manatomic (or --root <dir>)
+manatomic tasks hub add ../api --name API   # a repo folder or a data root
+manatomic tasks hub list                    # id, name and root per project
+manatomic tasks hub remove api              # unregister by id
+```
+
+A project's id is its repo folder name as a slug (`-2`, `-3`, … when taken),
+and its name is the folder name unless `--name` is given. `hub list` marks a
+project `unavailable` when its folder no longer has a `config.yml`. Once
+`hub.yml` exists, `manatomic tasks init` adds each new data root to it
+automatically; `init` never creates the file itself.
+
 Every command takes `--root <dir>` to point at a different data root and
 `--json` for JSON output (plain text is the default). `manatomic tasks --help`
 lists all commands; each command has its own `--help`.
