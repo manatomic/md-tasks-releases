@@ -45,7 +45,7 @@ Work with tasks:
 ```sh
 manatomic tasks task create "Add login page"   # create a task, prints its id
 manatomic tasks task list                      # one line per task, filters AND-combine
-manatomic tasks task view MAN-1                # fields, acceptance criteria, decision log
+manatomic tasks task view MAN-1                # fields, subtasks, acceptance criteria, decision log
 manatomic tasks task edit MAN-1                # change a task
 manatomic tasks task verify MAN-1              # run AC verify commands, record evidence
 ```
