@@ -47,7 +47,7 @@ manatomic tasks task create "Add login page"   # create a task, prints its id
 manatomic tasks task list                      # one line per task, filters AND-combine
 manatomic tasks task view MAN-1                # fields, subtasks, acceptance criteria, decision log
 manatomic tasks task edit MAN-1                # change a task
-manatomic tasks task verify MAN-1              # run AC verify commands, record evidence
+manatomic tasks task verify MAN-1 --by @me     # run AC verify commands, record evidence
 ```
 
 Acceptance criteria travel with the task: `task create` takes repeatable
@@ -144,6 +144,13 @@ address check and exposes the data root to your network, with no auth.
 Every command takes `--root <dir>` to point at a different data root and
 `--json` for JSON output (plain text is the default). `manatomic tasks --help`
 lists all commands; each command has its own `--help`.
+
+`task verify` runs the commands, and reads the evidence's commit sha, in the
+folder holding the data root (`<repo>/manatomic` → `<repo>`). When the data root
+lives outside the repo (e.g. a shared `--root ~/Documents/tasks`), pass
+`--cwd <repo root>` — or `--cwd .` from the clone's root — so commands and the
+sha come from that repo. The web UI's Verify buttons always run in the folder
+holding the data root.
 
 ## Agent skills (Claude Code plugin)
 
