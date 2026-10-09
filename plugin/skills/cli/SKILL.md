@@ -30,21 +30,24 @@ Global options, accepted by every command:
 | action | command |
 |---|---|
 | List tasks | `manatomic tasks task list` — one line per task: `ID  status  type  title` |
-| Filter tasks | `task list --status "To Do" --type bug --epic MAN-2 --sprint S1 --milestone M1 --assignee @claude --label web` (AND-combined) |
-| View a task | `manatomic tasks task view MAN-1` — fields, numbered AC, decision log |
+| Filter tasks | `task list --status "To Do" --type bug --epic MAN-2 --sprint S1 --milestone M1 --assignee @claude --label web` (AND-combined; `--epic` matches direct members only — tasks whose `epic:` is set to it; `task view <epic>` shows the full tree) |
+| View a task | `manatomic tasks task view MAN-1` — fields, a `## Subtasks (<done>/<total> done)` tree of everything under the task (an epic's members, any task's `parent:`-linked subtasks, recursively, indented two spaces per level; omitted when empty), numbered AC, decision log; `--json` adds `subtasks: [{ id, title, type, status, subtasks }]` (`[]` when empty) |
 | List / view docs | `manatomic tasks doc list`, `doc view <key>` (key = path under `docs/` without `.md`, e.g. `brainstorms/2026-08-20-login-ux`) |
 | List / view decisions | `manatomic tasks decision list`, `decision view DEC-1` |
 | Search everything | `manatomic tasks search "term"` — case-insensitive substring over ids, titles and body text of tasks, docs and decisions; prints a `tasks:` / `docs:` / `decisions:` header per non-empty kind with the same rows as the list commands |
 | Project config | `manatomic tasks config show` |
+| Project avatar | `manatomic tasks config avatar [text] [--color <hex>] [--image <path>]` / `config avatar --clear` — see below |
 | Structured output | append `--json` to any of the above |
 
-**Start sessions with `config show`**: it reveals the configured statuses (with their `todo`/`in_progress`/`done` categories — the first status is the default for new tasks), issue types, sprints, milestones, custom fields, the `definition_of_done` checklist seeded into new tasks' AC, and the `verify` settings.
+**Start sessions with `config show`**: it reveals the configured statuses (with their `todo`/`in_progress`/`done` categories — the first status is the default for new tasks), issue types, sprints, milestones, custom fields, the `definition_of_done` checklist seeded into new tasks' AC, the `verify` settings, and the project's `avatar` when one is set.
+
+**Project avatar** — how the project shows in the hub's rail and Projects page, stored under `avatar:` in `config.yml`: `config avatar [text] [--color <hex>] [--image <path>]` sets only the parts given (text 1–4 characters, an emoji counts as one; color `#rgb`/`#rrggbb`; image an existing png/jpg/gif/webp/svg file inside the repo folder — the data root's parent — resolved from the cwd and stored relative to the repo folder). An empty value (`--color ""`) removes that part, `--clear` the whole avatar; it prints the resulting `avatar:` block (`avatar: none` when cleared; `--json`: `{"avatar": {...} | null}`). A bad part or an image outside the repo exits 1 (`config-invalid`), nothing written; no part at all, or `--clear` with a part, exits 2. Pointing the avatar elsewhere deletes an image uploaded from the web UI's Settings (`<data root>/avatar-<hash>.<ext>`), never another file. A running hub shows the change without a restart.
 
 ## Creating
 
 | action | command |
 |---|---|
-| Scaffold a data root | `manatomic tasks init --prefix MAN` (creates `config.yml`, `tasks/`, `docs/`, `decisions/`; refuses a folder that already has a `config.yml`) |
+| Scaffold a data root | `manatomic tasks init --prefix MAN` (creates `config.yml`, `tasks/`, `docs/`, `decisions/`; refuses a folder that already has a `config.yml`; also records the new root in the hub registry when `hub.yml` already exists — never creates it, and a registry failure only warns on stderr) |
 | Create a task | `manatomic tasks task create "Title" --description "why + scope" --labels a,b --set priority=high` — prints the new id |
 | Create a doc | `manatomic tasks doc create "Title" --dir brainstorms --type brainstorm` — prints the key; write the body by editing the file |
 | Create a decision | `manatomic tasks decision create "Statement" --status accepted --deciders @najdan` — prints the next `DEC-<n>` |
@@ -77,6 +80,24 @@ Multi-line content: `--description` and `--plan` take a **file path or stdin**, 
 ## Local web UI
 
 `manatomic tasks serve [--port <n>] [--host <addr>]` serves the data root over HTTP and WebSocket until interrupted — a browser UI plus JSON API for humans reviewing what agents did (default `http://127.0.0.1:4400`; `--port 0` picks a free port). Agents normally don't need it; prefer the CLI.
+
+`manatomic tasks hub [--port <n>]` serves every project in the hub registry from one process, always on 127.0.0.1 (default `http://127.0.0.1:4500`): each project's API under `/p/<id>/api/…` (same answers as `serve`'s `/api/…`), its change events at `/p/<id>/ws`, and `GET /api/hub/projects` (each row carries the project's config.yml `avatar` when set) / `POST /api/hub/projects {path, name?}` to list or register projects. The web UI's Settings → Avatar sets the avatar's text and color (`PUT /api/config {avatar}`) and uploads or removes its image (`PUT` / `DELETE /api/avatar`, png/jpeg/gif/webp/svg up to 512 KiB; `GET /api/avatar` serves it). It creates an empty `hub.yml` if there is none, applies `hub add`/`hub remove` without a restart, and lists a missing root as unavailable (`503 project-unavailable` under `/p/<id>/`). A port in use exits 1; a stray word (`hub lst`) exits 2.
+
+`manatomic tasks hub autostart on [--port <n>]` starts the hub now and at every login; `hub autostart off` stops it and removes the entry (nothing installed → exit 0). macOS: LaunchAgent `~/Library/LaunchAgents/com.manatomic.hub.plist`, logs in `~/Library/Logs/manatomic-hub.log`, listed under System Settings → General → Login Items (macOS 13+ shows a "Background Items Added" notice). Linux: `systemd --user` unit `manatomic-hub.service` in `$XDG_CONFIG_HOME/systemd/user/` (else `~/.config/systemd/user/`), logs via `journalctl --user -u manatomic-hub`; a failing `systemctl --user` (no session bus) exits 1 with the unit path and the commands to run by hand. The entry restarts the hub after a crash and runs it with the current `PATH` and `XDG_CONFIG_HOME` — re-run `on` after a `PATH` change. `on` needs the installed binary (exit 1 from a source checkout); `--port 0` exits 2. Windows: not supported yet (exit 1, nothing written).
+
+Both refuse (`403`) a request whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` on their port (`forbidden-host`; `serve --host <addr>` also accepts `<addr>`, and a wildcard `--host 0.0.0.0` or `::` skips only this check), and a write or WebSocket upgrade whose `Origin` is another host (`forbidden-origin`). Requests without an `Origin` — the CLI, curl — pass.
+
+## Hub registry
+
+`hub.yml` is the user-level list of manatomic projects on this machine: `$XDG_CONFIG_HOME/manatomic/hub.yml` (when set and absolute), else `~/.config/manatomic/hub.yml` on macOS and Linux, `%APPDATA%\manatomic\hub.yml` on Windows. It holds a `projects:` list of `{ id, name, root }` (root = absolute data-root path).
+
+| action | command |
+|---|---|
+| Register a project | `manatomic tasks hub add [path] [--name <name>]` — `path` is a repo folder or a data root (default: the `--root` data root); prints `<id>  <root>`. The id is the repo folder name slugged (`-2`, `-3`, … on collision); re-adding a registered root prints its existing id and exits 0; a path without `config.yml` exits 1 (`not-a-data-root`) |
+| Unregister | `manatomic tasks hub remove <id>` — unknown id exits 1 (`not-found`) |
+| List | `manatomic tasks hub list` — `id  name  root` per project, `unavailable` appended when the root has no `config.yml`; `--json`: `[{ id, name, root, available }]` |
+
+A `hub.yml` with bad YAML or a malformed or duplicate id fails with `hub-invalid`, naming the id.
 
 ## Field semantics
 

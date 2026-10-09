@@ -279,6 +279,10 @@ verify:
   auto_check: false
   timeout_seconds: 60
   max_output: 200
+avatar:
+  text: MA
+  color: "#3b82f6"
+  image: assets/logo.svg
 ```
 
 - `prefix` (required) — task id prefix.
@@ -292,6 +296,16 @@ verify:
   previous milestone's `due` — derived, never stored.
 - `definition_of_done` — default checklist copied into new tasks' acceptance criteria by tooling.
 - `verify` — how `manatomic tasks task verify` may run acceptance-criteria commands: `enabled` (default `false`), `auto_check` (default `false`), `timeout_seconds` (positive integer, default `120`) and `max_output` (positive integer, default `200`, the characters of output kept in an evidence line). The whole map is optional; a key of the wrong type is a config error naming it and keeps that key's default.
+- `avatar` — how the project shows in the hub's rail and Projects page in place of its prefix:
+  `text` (1–4 characters, counted as graphemes so an emoji is one), `color` (`#rgb` or `#rrggbb`,
+  quoted — an unquoted `#` starts a YAML comment) behind the text or image, and `image` (a png,
+  jpg, jpeg, gif, webp or svg file). `image` is relative to the data root's **parent folder** —
+  the repo folder, where verify commands also run — uses forward slashes, and may not be
+  absolute or climb out with `..`; a host serving it also refuses a symlink that resolves outside
+  that folder. The image wins over the text when both are set; without `text` or `image` the
+  default (the prefix) shows, on `color` when one is set. Every part is optional and a bad part is
+  a config error naming it, dropping only that part. A file uploaded from Settings is stored as
+  `<data root>/avatar-<8 hex>.<ext>` and referenced here.
 
 Unknown top-level keys are preserved and exposed as `custom`.
 
@@ -300,8 +314,9 @@ through the YAML document model, so unknown top-level keys, untouched managed ke
 comments attached to either survive byte-for-byte — a comment *inside* a list the save
 rewrites does not, because that list is re-emitted. A status is written as a bare string
 when its category is the one its position already implies and as `{ name, category }`
-otherwise, so a hand-written file does not churn. `verify` is written one sub-key at a time,
-leaving sub-keys the UI does not manage alone.
+otherwise, so a hand-written file does not churn. `verify` and `avatar` are written one
+sub-key at a time, leaving sub-keys the UI does not manage alone; an `avatar` the save leaves
+empty is removed.
 
 ## 7. Concurrency (v1): last-write-wins with a conflict signal
 
@@ -331,5 +346,5 @@ Proper three-way merge is out of scope for v1 (tracked as a spike).
 - **Referenced-by** — every task, doc and decision carries `referencedBy: { from: { kind, id }, field }[]`, derived from task `epic`, `parent` and `related` links and decision `supersedes` and `related` links. Subtasks whose `parent` resolves appear in the parent's `children`; tasks with `type: epic` are listed as `epics`. Links are re-derived from the in-memory models after every mutation, without re-reading files.
 - **Validation** — `status` must be a configured status; `type` must be in `issue_types`; `sprint` / `milestone` must be configured ids; `epic` must link to an existing epic, `parent` to an existing task (never itself), `related` entries must resolve; custom fields are checked against `custom_fields` (unknown key, type and `select` options; `required` fields must be present on create). A rejected mutation throws a `RepositoryError` (`code`, optional `field` / `id`) and leaves file bytes and index untouched. Task mutations set `updated` to today; decision mutations never touch `date`.
 - **Delete** — `deleteTask` / `deleteDecision` remove the file through the adapter. There is no archive folder: git history is the archive. Links that pointed at the deleted entry become index warnings.
-- **Editing `config.yml`** — `setConfig(patch)` rewrites the managed sections (`statuses`, `issueTypes`, `customFields`, `definitionOfDone`, `verify`) in place, merging into whatever is on disk at write time (section 6); `prefix` is not patchable, since changing it would leave existing ids on the old prefix and restart numbering. The patch is validated first (non-empty unique status names with a known category, unique non-empty issue types, unique custom-field names with a known type and a `select` carrying at least one option, positive `verify` numbers), and then checked against the index: a status, issue type or custom-field name the patch drops — a rename counts as a drop — that tasks still carry is refused with `config-in-use` naming the affected task ids in id order. A name already absent from the current config was not removed by this edit, so a pre-existing orphan never blocks a save. Nothing is written unless the result reparses cleanly; a successful save replaces the loaded config and rebuilds the index, so the next mutation is validated against the new one.
+- **Editing `config.yml`** — `setConfig(patch)` rewrites the managed sections (`statuses`, `issueTypes`, `customFields`, `definitionOfDone`, `verify`, `avatar`) in place, merging into whatever is on disk at write time (section 6); `avatar` merges per part — a string sets `text`, `color` or `image`, `null` removes it, an absent part is left alone — and `avatar: null` removes the whole key; `prefix` is not patchable, since changing it would leave existing ids on the old prefix and restart numbering. The patch is validated first (non-empty unique status names with a known category, unique non-empty issue types, unique custom-field names with a known type and a `select` carrying at least one option, positive `verify` numbers, avatar parts that follow section 6), and then checked against the index: a status, issue type or custom-field name the patch drops — a rename counts as a drop — that tasks still carry is refused with `config-in-use` naming the affected task ids in id order. A name already absent from the current config was not removed by this edit, so a pre-existing orphan never blocks a save. Nothing is written unless the result reparses cleanly; a successful save replaces the loaded config and rebuilds the index, so the next mutation is validated against the new one.
 - **Issue types** — for now the model only knows the five built-in `type` values (`task | bug | spike | epic | subtask`); an `issue_types` entry outside that list is accepted in `config.yml` but rejected on tasks until the model grows custom issue types (tracked as a follow-up).
