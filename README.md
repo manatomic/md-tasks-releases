@@ -112,9 +112,9 @@ project's path, task-id prefix and task counts, or why it is unavailable — wit
 a form to add a project by typing or pasting its path (absolute or `~/…`); the
 rail's `+` opens the same form. Install the hub as an app (Chrome or Edge:
 Install app; Safari: File › Add to Dock) for its own window and Dock icon: one
-install covers every project, and your settings, such as the current user,
-carry across them. The ⌘1–⌘9 shortcuts work in the app window; browser tabs keep
-those keys for switching tabs.
+install covers every project, and your settings, such as the current user and
+the theme (Light, Dark or Automatic), carry across them. The ⌘1–⌘9 shortcuts
+work in the app window; browser tabs keep those keys for switching tabs.
 
 Start the hub at login, so the installed app always finds it running (macOS and
 Linux):
