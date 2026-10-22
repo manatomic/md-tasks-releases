@@ -4,7 +4,7 @@ type: spec
 status: final
 related: ["[[MAN-3 - File format spec + tasks-core model, parser and serializer]]", "[[MAN-15 - Roadmap screen milestone Gantt with epic bars and progress]]"]
 created: 2026-08-22
-updated: 2026-09-15
+updated: 2026-10-22
 ---
 
 # manatomic file format
@@ -21,12 +21,14 @@ The data root defaults to `manatomic/` at the repository root (configurable; it 
 manatomic/
   config.yml                     # project configuration (section 6)
   tasks/<ID> - <title>.md        # tasks, subtasks, bugs, spikes and epics
+  tasks/archive/<ID> - <title>.md  # archived tasks (section 8), same format
   docs/**/<name>.md              # free-form docs (brainstorms, research, specs)
   decisions/<ID> - <title>.md    # decision records
 ```
 
 - **Ids** are `<PREFIX>-<n>` (`MAN-12`). Tasks, epics, subtasks, bugs and spikes share the task prefix from `config.yml`; decisions use `DEC-<n>`.
 - **Filenames** are `<ID> - <title>.md`. Only the leading id is significant for resolution, so renaming the title part never breaks links.
+- **Archived tasks** live under `tasks/archive/`, keeping any sub-folder they had under `tasks/`. A task is archived exactly when its path is under `tasks/archive/`; it carries `archived_at` and `archived_by` (3.1), keeps its id — ids are never reused — and its links still resolve. Tooling treats it as read-only until it is restored, leaves it out of lists and search unless asked, and still counts it in its epic's progress.
 - **Wikilinks** (`[[MAN-12 - Login form]]`, `[[MAN-12 - Login form|MAN-12]]`) are Obsidian-compatible. Resolution takes the leading id of the link target; the rest of the target and any alias are display text. In YAML they must be quoted (`"[[...]]"`) because `[` starts a flow sequence.
 
 ## 2. General file rules
@@ -56,6 +58,8 @@ manatomic/
 | `related` | wikilink list | linked docs, decisions or other tasks (shown on the task page) |
 | `created`, `updated` | ISO 8601 string | maintained by tooling |
 | `plan_approved_by`, `plan_approved_at` | string, ISO 8601 | the **plan-approval marker** (3.5) |
+| `archived_at`, `archived_by` | ISO 8601, string | when and by whom the task was archived; set on archive, removed on restore (section 8) |
+| `seen_by`, `seen_at` | string, ISO 8601 | the **seen marker** (3.6) |
 | anything else | any | **custom fields** — passthrough, exposed on the model as `custom` and validated against `config.yml` `custom_fields` by tooling |
 
 ### 3.2 Sections
@@ -78,10 +82,12 @@ The body is split on `##` headings. Five section titles are recognised (case-ins
 
 - One top-level checkbox item per criterion; items are numbered by position (1-based) in CLI and UI, never in the file.
 - `verify:` is optional. A criterion without `verify:` is **manual**.
-- `evidence:` is written by `manatomic tasks task verify` (server/desktop host or agent) — never by the browser/Obsidian. `(<sha>)` and `: <output>` are optional. Output is a single line; long output is truncated by the writer.
-- **Writer rules** (`verify.*` in section 6): the command runs with `sh -c` in the parent directory of the data root; output is combined stdout and stderr collapsed to one line and truncated to `max_output` characters keeping the tail (an elided line starts with `…`); a command that outlives `timeout_seconds` is killed and recorded as `fail` with an output starting `timed out after <n>s` — the kill signals the `sh` process, so a still-running grandchild may linger; `(<sha>)` is `git rev-parse --short HEAD` in that directory, omitted outside a git repo; a criterion without `verify:` is manual and is never written.
+- `evidence:` is written by `manatomic tasks task verify` and the server's verify endpoint (which the web UI calls) — never by hand or by Obsidian. `(<sha>)` and `: <output>` are optional. Output is a single line; long output is truncated by the writer.
+- **Manual evidence**: a person's check of a manual criterion is recorded as `- evidence: pass by <who> at <ISO timestamp>: manual check` — written by `task verify --ac <n> --manual --by <who>` or the web UI's Mark verified, which tick the box in the same write. It runs nothing, so it works with `verify.enabled` off; a criterion that has a `verify:` command is refused. A plain checkbox click still ticks without evidence. The derived state stays `manual`, and readers recognise the `manual check` output to show who checked it and when.
+- **Writer rules** (`verify.*` in section 6): the command runs with `sh -c` in the parent directory of the data root by default, and a caller may name another directory (the CLI's `task verify --cwd <dir>`, for a data root that lives outside the repo); output is combined stdout and stderr collapsed to one line and truncated to `max_output` characters keeping the tail (an elided line starts with `…`); a command that outlives `timeout_seconds` is killed and recorded as `fail` with an output starting `timed out after <n>s` — the kill signals the `sh` process, so a still-running grandchild may linger; `(<sha>)` is `git rev-parse --short HEAD` in that directory, omitted outside a git repo; a criterion without `verify:` is manual, its command is never run, and only the manual check above writes its evidence.
 - The **checkbox is the single source of truth** for "done". Tooling may refuse to check a manual criterion without a human doing it, but the parser only reports state.
-- Unknown sub-bullets and continuation lines under an item are preserved.
+- Unknown sub-bullets and continuation lines under an item are preserved. Indented continuation lines are the criterion's **steps** — by convention a manual criterion's numbered walk-through, one step per line indented two spaces under the checkbox line, details as `-` bullets under their step. Readers expose them with the common leading indentation removed (`steps` in the JSON shape, `[]` when there are none); a writer adding a criterion from multi-line text takes the first line as the criterion and indents the remaining lines this way, whatever indentation it was given.
+- **Editing criteria** (section 8): rewording a criterion, editing its steps and moving it keep its checkbox and evidence; changing or removing its `verify:` command clears its `evidence:` and unticks it, since the evidence was for another command.
 - **Derived state** (`AcItem.state`):
   1. no `verify:` ⇒ `manual`
   2. evidence result `fail` ⇒ `failing`
@@ -97,11 +103,26 @@ Each entry is a `###` heading of the form `### <type> | <author> | <ISO timestam
 Use the yaml package instead of a hand-written YAML subset.
 ```
 
+**Question and answer.** A question put to a person, its options and the outcome are recorded as one `decision` entry in this convention, which tooling parses (`parseDecisionQa`) and the UI renders as question, options, recommendation and choice:
+
+```text
+### decision | @claude | 2026-08-22T10:35:00Z
+Q: Which port should serve use? / Options: 4400, 8080 (free) / Recommendation: 4400 / User chose: 8080 (free)
+```
+
+- The parts are `Q:`, `Options:`, `Recommendation:` and `User chose:` (or `Chosen:`), separated by ` / `; every part but `Q:` is optional, and prose after the last part is kept as a note.
+- `Options:` splits on `;` when there is one, else on commas outside parentheses; an option's label is the text before a `/`, `.` or `?` that explains it.
+- An entry with no `Q:`, or with several, is plain text. An entry that records `User chose:` or `Chosen:` is **answered**: it no longer waits on anyone. When the choice differs from the recommendation, the UI says it went against the recommendation.
+
 ### 3.5 Plan-approval marker
 
 "Approved by you" on the implementation plan is recorded in frontmatter as `plan_approved_by` (who) and `plan_approved_at` (ISO timestamp). Both keys present ⇒ plan approved; tooling removes them whenever the `## Implementation plan` body changes, so approval always refers to the plan as it was read. The approval is *also* a normal `decision` entry in the decision log when a human approves via UI/CLI, which keeps the audit trail readable without the marker.
 
-### 3.6 Example
+### 3.6 Seen marker
+
+"Seen" on a task is recorded in frontmatter as `seen_by` (who) and `seen_at` (ISO timestamp) — the web UI's Agents → Needs you writes them with Mark as seen. A task seen since its last decision-log entry (`seen_at` not older than that entry's timestamp) is left out of Needs you; a newer entry brings it back. Writing the marker does not change `updated`, since the task's content did not change.
+
+### 3.7 Example
 
 ```markdown file=manatomic/tasks/MAN-12 - Login form validation.md
 ---
@@ -283,19 +304,26 @@ avatar:
   text: MA
   color: "#3b82f6"
   image: assets/logo.svg
+features:
+  sprints: true
+  plan_approval: false
+archive:
+  after_days: 30
 ```
 
 - `prefix` (required) — task id prefix.
 - `statuses` — ordered list; each entry is a string or `{ name, category }` where `category` is `todo | in_progress | done`. Strings default to `todo` for the first entry, `done` for the last and `in_progress` in between. The first status is the default for new tasks.
 - `issue_types` — allowed `type` values (default `[task, bug, spike, epic, subtask]`).
 - `custom_fields` — `{ name, type: text | number | select | date | boolean, options?, required? }`.
-- `sprints` — `{ id, name, start, end, goal? }`; a task is in a sprint when its `sprint` equals the id.
+- `sprints` — `{ id, name, start, end, goal? }`; a task is in a sprint when its `sprint` equals the id. The list is writable through `setConfig` (section 8), which replaces it whole — the web UI creates sprints this way.
 - `milestones` — `{ id, name, start?, due?, description? }`; a task is in a milestone when its
   `milestone` equals the id. Both dates are ISO `YYYY-MM-DD` and both are optional: `due` is what
   puts a milestone on the roadmap's chart, and a missing `start` is derived by the UI from the
   previous milestone's `due` — derived, never stored.
 - `definition_of_done` — default checklist copied into new tasks' acceptance criteria by tooling.
 - `verify` — how `manatomic tasks task verify` may run acceptance-criteria commands: `enabled` (default `false`), `auto_check` (default `false`), `timeout_seconds` (positive integer, default `120`) and `max_output` (positive integer, default `200`, the characters of output kept in an evidence line). The whole map is optional; a key of the wrong type is a config error naming it and keeps that key's default.
+- `features:` — which parts of the web app the project uses: `sprints`, `epics`, `roadmap` (the roadmap and milestones), `archive`, `docs` (docs and decisions), `agents` (the agents feed and its needs-you count) and `plan_approval`, each a boolean defaulting to `true`. A switched-off feature's screen, nav item, task fields, filters and keys are hidden in the web app; nothing in the files changes and no CLI command is refused. With `plan_approval: false` an unapproved plan waits on no one. A non-boolean value is a config error naming the key and keeps that default; unknown keys under `features:` are kept and ignored.
+- `archive` — `after_days` (positive integer, default `30`): how many days a Done task waits, by its `updated` date, before `task archive --stale` and the web UI's Archive now take it. Nothing archives in the background.
 - `avatar` — how the project shows in the hub's rail and Projects page in place of its prefix:
   `text` (1–4 characters, counted as graphemes so an emoji is one), `color` (`#rgb` or `#rrggbb`,
   quoted — an unquoted `#` starts a YAML comment) behind the text or image, and `image` (a png,
@@ -316,7 +344,8 @@ rewrites does not, because that list is re-emitted. A status is written as a bar
 when its category is the one its position already implies and as `{ name, category }`
 otherwise, so a hand-written file does not churn. `verify` and `avatar` are written one
 sub-key at a time, leaving sub-keys the UI does not manage alone; an `avatar` the save leaves
-empty is removed.
+empty is removed. `features` and `archive` are written one switch at a time too, and only the
+switches a save carries.
 
 ## 7. Concurrency (v1): last-write-wins with a conflict signal
 
@@ -342,9 +371,11 @@ Proper three-way merge is out of scope for v1 (tracked as a spike).
 - **New docs** — `createDoc({ title, dir?, type?, body? })` writes `docs/<dir>/<title>.md` (filename title sanitized like task filenames) with frontmatter `title`, `type` (only when given) and `created` set to today, followed by the optional markdown body. The new doc is registered in the index before the rebuild, so wikilinks to it resolve immediately. It is rejected when the key is already taken or the file exists (`duplicate-id`), when the title has no usable filename characters or when `dir` contains a `..` segment (`invalid-path`).
 - **Recording evidence** — `setAcceptanceEvidence(id, n, evidence, { checked? })` writes the `evidence:` sub-bullet of criterion `n` (1-based), checking the box in the same write when `checked` is given, so evidence and checkbox never disagree on disk. A verify run is one write per criterion: interrupt it (or delete the task, or drop a criterion from disk mid-run, which makes the next write throw `unknown-id` / `ac-out-of-range`) and the evidence already written stays.
 - **Adding acceptance criteria** — `addAcceptanceCriterion(id, text, verify?)` appends one unchecked criterion after the existing ones (creating the `## Acceptance criteria` section when missing), with a `verify:` sub-bullet only when a command is given — so a criterion added without one is `manual` (section 3.3).
+- **Editing acceptance criteria** — `editAcceptanceCriterion(id, n, { text?, steps?, verify? })` rewords criterion `n`, replaces its steps, or sets (`verify: "<cmd>"`) or removes (`verify: null`) its command; `moveAcceptanceCriterion(id, from, to)` moves it to position `to`; `removeAcceptanceCriterion(id, n)` drops it. Rewording, steps and moves keep the checkbox and evidence; a changed or removed command clears that criterion's `evidence:` and unticks it (section 3.3). `recordManualEvidence(id, n, by, at)` writes the `manual check` evidence of a manual criterion and ticks it, refusing a criterion with a command (`ac-has-verify`).
 - **Doc identity** — a doc has no id; it is identified by its path relative to `docs/` without the `.md` extension (`brainstorms/2026-08-20-login-ux`). A wikilink without a leading id is resolved against docs: first by exact key, then by basename when exactly one doc has that basename. An ambiguous basename or a missing target is an index warning, not an error, and yields no back-link.
 - **Referenced-by** — every task, doc and decision carries `referencedBy: { from: { kind, id }, field }[]`, derived from task `epic`, `parent` and `related` links and decision `supersedes` and `related` links. Subtasks whose `parent` resolves appear in the parent's `children`; tasks with `type: epic` are listed as `epics`. Links are re-derived from the in-memory models after every mutation, without re-reading files.
 - **Validation** — `status` must be a configured status; `type` must be in `issue_types`; `sprint` / `milestone` must be configured ids; `epic` must link to an existing epic, `parent` to an existing task (never itself), `related` entries must resolve; custom fields are checked against `custom_fields` (unknown key, type and `select` options; `required` fields must be present on create). A rejected mutation throws a `RepositoryError` (`code`, optional `field` / `id`) and leaves file bytes and index untouched. Task mutations set `updated` to today; decision mutations never touch `date`.
-- **Delete** — `deleteTask` / `deleteDecision` remove the file through the adapter. There is no archive folder: git history is the archive. Links that pointed at the deleted entry become index warnings.
-- **Editing `config.yml`** — `setConfig(patch)` rewrites the managed sections (`statuses`, `issueTypes`, `customFields`, `definitionOfDone`, `verify`, `avatar`) in place, merging into whatever is on disk at write time (section 6); `avatar` merges per part — a string sets `text`, `color` or `image`, `null` removes it, an absent part is left alone — and `avatar: null` removes the whole key; `prefix` is not patchable, since changing it would leave existing ids on the old prefix and restart numbering. The patch is validated first (non-empty unique status names with a known category, unique non-empty issue types, unique custom-field names with a known type and a `select` carrying at least one option, positive `verify` numbers, avatar parts that follow section 6), and then checked against the index: a status, issue type or custom-field name the patch drops — a rename counts as a drop — that tasks still carry is refused with `config-in-use` naming the affected task ids in id order. A name already absent from the current config was not removed by this edit, so a pre-existing orphan never blocks a save. Nothing is written unless the result reparses cleanly; a successful save replaces the loaded config and rebuilds the index, so the next mutation is validated against the new one.
+- **Archive and restore** — `archiveTask(id, by, at)` moves a task to `tasks/archive/` (keeping its sub-path under `tasks/`) and stamps `archived_at` and `archived_by`; `restoreTask(id)` moves it back under `tasks/` and removes both keys; `archiveDoneBefore(days, by, at)` archives every live task whose status category is `done` and whose `updated` (else `created`) date is more than `days` days old, returning their ids. Both refuse a target path that already exists; archive refuses an archived task (`archived`) and restore a live one (`not-archived`). Every other task mutation refuses an archived task (`archived`) until it is restored. The id is never reused, links keep resolving, and an archived task still counts in its epic's progress.
+- **Delete** — `deleteTask` / `deleteDecision` remove the file through the adapter, archived or not. Links that pointed at the deleted entry become index warnings.
+- **Editing `config.yml`** — `setConfig(patch)` rewrites the managed sections (`statuses`, `issueTypes`, `customFields`, `definitionOfDone`, `verify`, `features`, `archive`, `sprints`, `avatar`) in place, merging into whatever is on disk at write time (section 6); `avatar` merges per part — a string sets `text`, `color` or `image`, `null` removes it, an absent part is left alone — and `avatar: null` removes the whole key; `prefix` is not patchable, since changing it would leave existing ids on the old prefix and restart numbering. The patch is validated first (non-empty unique status names with a known category, unique non-empty issue types, unique custom-field names with a known type and a `select` carrying at least one option, positive `verify` numbers, avatar parts that follow section 6), and then checked against the index: a status, issue type or custom-field name the patch drops — a rename counts as a drop — that tasks still carry is refused with `config-in-use` naming the affected task ids in id order. A name already absent from the current config was not removed by this edit, so a pre-existing orphan never blocks a save. Nothing is written unless the result reparses cleanly; a successful save replaces the loaded config and rebuilds the index, so the next mutation is validated against the new one.
 - **Issue types** — for now the model only knows the five built-in `type` values (`task | bug | spike | epic | subtask`); an `issue_types` entry outside that list is accepted in `config.yml` but rejected on tasks until the model grows custom issue types (tracked as a follow-up).
