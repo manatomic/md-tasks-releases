@@ -138,6 +138,25 @@ install covers every project, and your settings, such as the current user and
 the theme (Light, Dark or Automatic), carry across them. The ⌘1–⌘9 shortcuts
 work in the app window; browser tabs keep those keys for switching tabs.
 
+Give a project an avatar you recognize in the rail — 1–4 characters (an emoji
+counts as one), a color, or a logo image. It is a project setting, saved under
+`avatar:` in `config.yml`, so it is committed with the project and every hub
+shows it. Set it in the web UI under Settings → General → Edit avatar (text, color, and
+Upload image / Remove image — png, jpg, gif, webp or svg, up to 512 KiB, saved
+into the data root), or click a project's avatar on the Projects page to get
+there. Or from the CLI:
+
+```sh
+manatomic tasks config avatar MA --color "#e11d48"   # text and color
+manatomic tasks config avatar --image assets/logo.svg # an image already in the repo
+manatomic tasks config avatar --color ""              # remove one part
+manatomic tasks config avatar --clear                 # back to the task-id prefix
+```
+
+`--image` takes a file inside the repo folder (the folder holding `manatomic/`)
+and stores its path relative to that folder. A running hub shows the change
+without a restart.
+
 Start the hub at login, so the installed app always finds it running (macOS and
 Linux):
 
