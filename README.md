@@ -28,6 +28,15 @@ variables:
 
 Check the installed version with `manatomic --version`.
 
+The macOS binaries are signed (ad hoc) when they are built, so macOS runs them
+as installed. Releases up to v0.3.0 shipped them with an invalid signature,
+which makes macOS kill them at launch — `manatomic --version` prints nothing.
+Re-sign such an install once, or install a newer release:
+
+```sh
+cp ~/.local/bin/manatomic /tmp/manatomic && codesign --force --sign - /tmp/manatomic && mv /tmp/manatomic ~/.local/bin/manatomic
+```
+
 ## Usage
 
 Scaffold a data root in your project (default directory `./manatomic`; the
