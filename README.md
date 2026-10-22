@@ -48,13 +48,20 @@ manatomic tasks task list                      # one line per task, filters AND-
 manatomic tasks task view MAN-1                # fields, subtasks, acceptance criteria, decision log
 manatomic tasks task edit MAN-1                # change a task
 manatomic tasks task verify MAN-1 --by @me     # run AC verify commands, record evidence
+manatomic tasks task archive MAN-1 --by @me    # move it to tasks/archive/, read-only
+manatomic tasks task restore MAN-1             # bring it back
 ```
 
 Acceptance criteria travel with the task: `task create` takes repeatable
 `--ac "criterion"` / `--ac-verify "cmd"` pairs (each `--ac-verify` attaches to
 the nearest preceding `--ac`), and `task edit` adds (`--ac-add`, the same
 repeatable pairing with `--ac-verify`), checks (`--check-ac`), unchecks
-(`--uncheck-ac`) and removes (`--remove-ac`, the rest renumber) them later.
+(`--uncheck-ac`), removes (`--remove-ac`, the rest renumber), rewords
+(`--edit-ac <n>=<text>`), moves (`--move-ac <from>:<to>`) and sets or removes
+their verify command (`--set-ac-verify <n>=<cmd>`, `--set-ac-verify <n>=` —
+either clears that criterion's evidence) later. After a person walks a manual
+criterion, `task verify MAN-1 --ac 3 --manual --by @me` ticks it and records
+who checked it and when, even with verify switched off.
 An `--ac` / `--ac-add` value may span lines: the first line is the criterion
 and the rest are its steps, written indented under it in the file and shown
 under it by `task view` and the web UI. A task's Summary — its short PR-ready completion note —
@@ -62,6 +69,15 @@ is replaced with `task edit --summary` or extended with repeatable
 `--append-summary` flags (one paragraph per use), so progress notes can be
 added without resending the existing text. Each command's `--help` lists
 every flag.
+
+Archive finished work instead of deleting it: `task archive <id>... --by @me`
+moves tasks to `tasks/archive/`, `task archive --done-before 30 --by @me`
+takes every Done task last updated more than 30 days ago, and `task archive
+--stale --by @me` does the same with `archive.after_days` from `config.yml`
+(default 30). An archived task keeps its id and its links, still counts toward
+its epic, and is read-only until `task restore <id>`; `task list` and `search`
+leave it out unless you pass `--include-archived` (`task list --archived` lists
+only archived tasks). Nothing archives on its own.
 
 Docs and decision records follow the same pattern: `manatomic tasks doc
 create|list|view` and `manatomic tasks decision create|list|view`. Search
@@ -89,6 +105,8 @@ manatomic tasks hub add                     # register ./manatomic (or --root <d
 manatomic tasks hub add ../api --name API   # a repo folder or a data root
 manatomic tasks hub list                    # id, name and root per project
 manatomic tasks hub remove api              # unregister by id
+manatomic tasks hub rename api "API service"   # a new display name; the id stays
+manatomic tasks hub set-path api ../api-v2     # point it at another data root
 ```
 
 A project's id is its repo folder name as a slug (`-2`, `-3`, … when taken),
@@ -110,10 +128,11 @@ is missing is shown as unavailable without affecting the others.
 
 In the browser, the hub's web UI has a project rail on the left: click a
 project to switch to it, or press ⌘1–⌘9 (Ctrl+1–Ctrl+9 on Windows and Linux)
-for the first nine. `http://127.0.0.1:4500` itself is the Projects page — each
-project's path, task-id prefix and task counts, or why it is unavailable — with
-a form to add a project by typing or pasting its path (absolute or `~/…`); the
-rail's `+` opens the same form. Install the hub as an app (Chrome or Edge:
+for the first nine. `http://127.0.0.1:4500` itself is the Projects page — a card
+per project with its path and task counts, or why it is unavailable — where you
+rename a project in place, change the path of one that moved, remove one from
+the hub (its files stay), and add a project by typing or pasting its path
+(absolute or `~/…`); the rail's `+` opens the same form. Install the hub as an app (Chrome or Edge:
 Install app; Safari: File › Add to Dock) for its own window and Dock icon: one
 install covers every project, and your settings, such as the current user and
 the theme (Light, Dark or Automatic), carry across them. The ⌘1–⌘9 shortcuts
@@ -143,6 +162,19 @@ Both `serve` and `hub` only answer requests addressed to this machine
 WebSocket connections from other websites (an `Origin` check), so a page you
 visit cannot reach your tasks. `serve --host 0.0.0.0` (or `::`) skips the
 address check and exposes the data root to your network, with no auth.
+
+A project can switch off what it does not use — sprints, epics, the roadmap,
+the archive, docs, the agents feed or plan approval — in the web UI's Settings
+→ Features, saved under `features:` in `config.yml`:
+
+```yaml
+features:
+  sprints: false
+  plan_approval: false
+```
+
+The web UI then hides that screen, its fields, filters and keys; your files
+are untouched and the CLI works the same either way.
 
 Every command takes `--root <dir>` to point at a different data root and
 `--json` for JSON output (plain text is the default). `manatomic tasks --help`
