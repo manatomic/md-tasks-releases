@@ -111,8 +111,10 @@ Q: Which port should serve use? / Options: 4400, 8080 (free) / Recommendation: 4
 ```
 
 - The parts are `Q:`, `Options:`, `Recommendation:` and `User chose:` (or `Chosen:`), separated by ` / `; every part but `Q:` is optional, and prose after the last part is kept as a note.
-- `Options:` splits on `;` when there is one, else on commas outside parentheses; an option's label is the text before a `/`, `.` or `?` that explains it.
-- An entry with no `Q:`, or with several, is plain text. An entry that records `User chose:` or `Chosen:` is **answered**: it no longer waits on anyone. When the choice differs from the recommendation, the UI says it went against the recommendation.
+- `Options:` splits on `;` outside parentheses when there is one, else on commas outside parentheses; an option's label is the text before a `/`, `.` or `?` that explains it.
+- Writers list every option they offered in `Options:`, and write `Recommendation:` and `User chose:` as one option's label, copied word for word, with any reason after ` — ` (`User chose: 8080 (free) — 4400 is taken`). An answer outside the offered options is written as given.
+- An entry with no `Q:`, or with several, is plain text. An entry that records `User chose:` or `Chosen:` is **answered**: it no longer waits on anyone.
+- The UI marks the chosen option, and shows an answer outside the options as an extra answer marked custom. It says the choice went against the recommendation only when the two name different offered options or, with no options recorded, share no meaningful word; when it cannot tell, it shows no badge.
 
 ### 3.5 Plan-approval marker
 

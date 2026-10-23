@@ -153,7 +153,7 @@ A `hub.yml` with bad YAML or a malformed or duplicate id fails with `hub-invalid
   Q: Which port should serve use? / Options: 4400, 8080 (free) / Recommendation: 4400 / User chose: 8080 (free)
   ```
 
-  `Options:` split on `;` when there is one, else on commas outside parentheses; `Chosen:` may stand for `User chose:`, and a note may follow the choice. An entry that records `User chose:` or `Chosen:` counts as **answered** — an unanswered question from an agent is what puts a task in the web UI's Needs you. Keep one question per entry: an entry with several reads as plain text.
+  List every option you offered in `Options:`, and write `Recommendation:` and `User chose:` as one option's label, copied word for word, with any reason after ` — ` (`User chose: 8080 (free) — 4400 is taken`); an answer outside the offered options is written as given. That is how the web UI knows which option was chosen and whether the choice went against the recommendation. `Options:` split on `;` outside parentheses when there is one, else on commas outside parentheses; `Chosen:` may stand for `User chose:`, and a note may follow the choice. An entry that records `User chose:` or `Chosen:` counts as **answered** — an unanswered question from an agent is what puts a task in the web UI's Needs you. Keep one question per entry: an entry with several reads as plain text.
 - **Summary** — short PR-ready completion summary.
 
 ## Verify evidence
