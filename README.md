@@ -76,8 +76,10 @@ and the rest are its steps, written indented under it in the file and shown
 under it by `task view` and the web UI. A task's Summary — its short PR-ready completion note —
 is replaced with `task edit --summary` or extended with repeatable
 `--append-summary` flags (one paragraph per use), so progress notes can be
-added without resending the existing text. Each command's `--help` lists
-every flag.
+added without resending the existing text. A task's deadline is the day it is
+due, a date-only key: `task edit MAN-1 --set deadline=2026-11-02` sets it, an
+impossible date such as `2026-02-31` is refused, `--set deadline=` removes it,
+and `task view` shows it. Each command's `--help` lists every flag.
 
 Archive finished work instead of deleting it: `task archive <id>... --by @me`
 moves tasks to `tasks/archive/`, `task archive --done-before 30 --by @me`
